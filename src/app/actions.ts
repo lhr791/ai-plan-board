@@ -23,14 +23,20 @@ export async function getDashboardData() {
         .order('created_at', { ascending: true })
 
     // Sort nested arrays
+    const getSort = (val: any) => (val === null || val === undefined) ? Infinity : val
+
     sections?.forEach((s: any) => {
         s.tasks.sort((a: any, b: any) => {
-            if (a.sort_order !== b.sort_order) return (a.sort_order || 0) - (b.sort_order || 0)
+            const orderA = getSort(a.sort_order)
+            const orderB = getSort(b.sort_order)
+            if (orderA !== orderB) return orderA - orderB
             return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         })
         s.tasks.forEach((t: any) => {
             t.plans.sort((a: any, b: any) => {
-                if (a.sort_order !== b.sort_order) return (a.sort_order || 0) - (b.sort_order || 0)
+                const orderA = getSort(a.sort_order)
+                const orderB = getSort(b.sort_order)
+                if (orderA !== orderB) return orderA - orderB
                 return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
             })
             // Calculate progress
