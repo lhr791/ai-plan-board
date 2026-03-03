@@ -283,10 +283,10 @@ export default function DashboardClient({ initialData }: { initialData: Section[
                 </div>
             </div>
 
-            {/* grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+            {/* Masonry Layout */}
+            <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
                 {data.map(section => (
-                    <div key={section.id} className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 hover:border-[#58a6ff] hover:shadow-[0_8px_25px_rgba(88,166,255,0.4)] transition-all duration-300 relative group">
+                    <div key={section.id} className="break-inside-avoid bg-[#161b22] border border-[#30363d] rounded-xl p-6 hover:border-[#58a6ff] hover:shadow-[0_8px_25px_rgba(88,166,255,0.4)] transition-all duration-300 relative group">
 
                         <div className="flex justify-between items-start border-b border-[#30363d] pb-3 mb-5">
                             <EditableSpan
