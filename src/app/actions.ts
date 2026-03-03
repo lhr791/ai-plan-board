@@ -56,7 +56,11 @@ export async function addSection(title: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
 
-    const { data } = await supabase.from('ai_plan_sections').insert({ title, user_id: user.id }).select('id').single()
+    // Get max sort_order
+    const { data: maxRow } = await supabase.from('ai_plan_sections').select('sort_order').eq('user_id', user.id).order('sort_order', { ascending: false }).limit(1).single()
+    const nextOrder = (maxRow?.sort_order ?? -1) + 1
+
+    const { data } = await supabase.from('ai_plan_sections').insert({ title, user_id: user.id, sort_order: nextOrder }).select('id').single()
     revalidatePath('/')
     return data?.id || null
 }
@@ -78,12 +82,17 @@ export async function addTask(sectionId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
 
+    // Get max sort_order in this section
+    const { data: maxRow } = await supabase.from('ai_plan_tasks').select('sort_order').eq('section_id', sectionId).order('sort_order', { ascending: false }).limit(1).single()
+    const nextOrder = (maxRow?.sort_order ?? -1) + 1
+
     const { data } = await supabase.from('ai_plan_tasks').insert({
         section_id: sectionId,
         user_id: user.id,
         title: '新任务',
         badge: '标签',
-        desc: ''
+        desc: '',
+        sort_order: nextOrder
     }).select('id').single()
     revalidatePath('/')
     return data?.id || null
@@ -106,10 +115,15 @@ export async function addPlan(taskId: string, desc: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
 
+    // Get max sort_order in this task
+    const { data: maxRow } = await supabase.from('ai_plan_items').select('sort_order').eq('task_id', taskId).order('sort_order', { ascending: false }).limit(1).single()
+    const nextOrder = (maxRow?.sort_order ?? -1) + 1
+
     const { data } = await supabase.from('ai_plan_items').insert({
         task_id: taskId,
         user_id: user.id,
-        desc
+        desc,
+        sort_order: nextOrder
     }).select('id').single()
     revalidatePath('/')
     return data?.id || null
