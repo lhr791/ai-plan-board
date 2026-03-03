@@ -54,10 +54,11 @@ export async function getDashboardData() {
 export async function addSection(title: string) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) return null
 
-    await supabase.from('ai_plan_sections').insert({ title, user_id: user.id })
+    const { data } = await supabase.from('ai_plan_sections').insert({ title, user_id: user.id }).select('id').single()
     revalidatePath('/')
+    return data?.id || null
 }
 
 export async function updateSection(id: string, title: string) {
@@ -75,16 +76,17 @@ export async function deleteSection(id: string) {
 export async function addTask(sectionId: string) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) return null
 
-    await supabase.from('ai_plan_tasks').insert({
+    const { data } = await supabase.from('ai_plan_tasks').insert({
         section_id: sectionId,
         user_id: user.id,
         title: '新任务',
         badge: '标签',
         desc: ''
-    })
+    }).select('id').single()
     revalidatePath('/')
+    return data?.id || null
 }
 
 export async function updateTask(id: string, updates: { title?: string, badge?: string, desc?: string }) {
@@ -102,14 +104,15 @@ export async function deleteTask(id: string) {
 export async function addPlan(taskId: string, desc: string) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) return null
 
-    await supabase.from('ai_plan_items').insert({
+    const { data } = await supabase.from('ai_plan_items').insert({
         task_id: taskId,
         user_id: user.id,
         desc
-    })
+    }).select('id').single()
     revalidatePath('/')
+    return data?.id || null
 }
 
 export async function updatePlan(id: string, updates: { desc?: string, is_completed?: boolean }) {

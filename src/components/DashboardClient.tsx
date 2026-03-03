@@ -106,8 +106,14 @@ export default function DashboardClient({ initialData }: { initialData: Section[
     // ==== ACTIONS ====
 
     const onAddSection = async () => {
-        mutData(prev => [...prev, { id: 'temp_' + Date.now(), title: '新板块', tasks: [] }])
-        runSync(() => addSection('新板块'))
+        const tempId = 'temp_' + Date.now()
+        mutData(prev => [...prev, { id: tempId, title: '新板块', tasks: [] }])
+        runSync(async () => {
+            const realId = await addSection('新板块')
+            if (realId) {
+                setData(prev => prev.map(s => s.id === tempId ? { ...s, id: realId } : s))
+            }
+        })
     }
 
     const onDeleteSection = async (id: string) => {
@@ -127,16 +133,27 @@ export default function DashboardClient({ initialData }: { initialData: Section[
     }
 
     const onAddTask = async (sectionId: string) => {
+        const tempId = 'temp_' + Date.now()
         mutData(prev => prev.map(s => {
             if (s.id === sectionId) {
                 return {
                     ...s,
-                    tasks: [...s.tasks, { id: 'temp_' + Date.now(), title: '新任务', badge: '标签', desc: '', progress: 0, plans: [] }]
+                    tasks: [...s.tasks, { id: tempId, title: '新任务', badge: '标签', desc: '', progress: 0, plans: [] }]
                 }
             }
             return s
         }))
-        if (!sectionId.startsWith('temp_')) runSync(() => addTask(sectionId))
+        if (!sectionId.startsWith('temp_')) {
+            runSync(async () => {
+                const realId = await addTask(sectionId)
+                if (realId) {
+                    setData(prev => prev.map(s => ({
+                        ...s,
+                        tasks: s.tasks.map(t => t.id === tempId ? { ...t, id: realId } : t)
+                    })))
+                }
+            })
+        }
     }
 
     const onDeleteTask = async (sectionId: string, taskId: string) => {
@@ -188,8 +205,18 @@ export default function DashboardClient({ initialData }: { initialData: Section[
         setNewPlanDesc('')
 
         if (!activeTask.taskId.startsWith('temp_')) {
-            runSync(() => addPlan(activeTask.taskId, trimmed))
-            // the real ID is updated when user refreshes or we wait for polling.
+            runSync(async () => {
+                const realId = await addPlan(activeTask.taskId, trimmed)
+                if (realId) {
+                    setData(prev => prev.map(s => ({
+                        ...s,
+                        tasks: s.tasks.map(t => ({
+                            ...t,
+                            plans: t.plans.map(p => p.id === tempId ? { ...p, id: realId } : p)
+                        }))
+                    })))
+                }
+            })
         }
     }
 
