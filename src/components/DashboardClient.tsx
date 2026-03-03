@@ -32,6 +32,8 @@ type Section = {
 export default function DashboardClient({ initialData }: { initialData: Section[] }) {
     const [data, setData] = useState<Section[]>(initialData)
     const [isImporting, setIsImporting] = useState(false)
+    const [syncStatus, setSyncStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+    const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     // Modal State
     const [modalOpen, setModalOpen] = useState(false)
@@ -80,17 +82,31 @@ export default function DashboardClient({ initialData }: { initialData: Section[
         setData(prev => updater(prev))
     }
 
+    const runSync = async (action: () => Promise<any>) => {
+        setSyncStatus('saving')
+        if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current)
+        try {
+            await action()
+            setSyncStatus('saved')
+            syncTimeoutRef.current = setTimeout(() => setSyncStatus('idle'), 2000)
+        } catch (e) {
+            console.error('Sync failed', e)
+            setSyncStatus('idle')
+            alert('保存失败，请检查网络连接')
+        }
+    }
+
     // ==== ACTIONS ====
 
     const onAddSection = async () => {
         mutData(prev => [...prev, { id: 'temp_' + Date.now(), title: '新板块', tasks: [] }])
-        await addSection('新板块')
+        runSync(() => addSection('新板块'))
     }
 
     const onDeleteSection = async (id: string) => {
         if (confirm('确定要删除这个板块及其包含的所有任务吗？')) {
             mutData(prev => prev.filter(s => s.id !== id))
-            if (!id.startsWith('temp_')) await deleteSection(id)
+            if (!id.startsWith('temp_')) runSync(() => deleteSection(id))
         }
     }
 
@@ -99,7 +115,7 @@ export default function DashboardClient({ initialData }: { initialData: Section[
         const section = data.find(s => s.id === id)
         if (section && section.title !== trimmed) {
             mutData(prev => prev.map(s => s.id === id ? { ...s, title: trimmed } : s))
-            if (!id.startsWith('temp_')) updateSection(id, trimmed)
+            if (!id.startsWith('temp_')) runSync(() => updateSection(id, trimmed))
         }
     }
 
@@ -113,7 +129,7 @@ export default function DashboardClient({ initialData }: { initialData: Section[
             }
             return s
         }))
-        if (!sectionId.startsWith('temp_')) await addTask(sectionId)
+        if (!sectionId.startsWith('temp_')) runSync(() => addTask(sectionId))
     }
 
     const onDeleteTask = async (sectionId: string, taskId: string) => {
@@ -121,7 +137,7 @@ export default function DashboardClient({ initialData }: { initialData: Section[
             if (s.id === sectionId) return { ...s, tasks: s.tasks.filter(t => t.id !== taskId) }
             return s
         }))
-        if (!taskId.startsWith('temp_')) await deleteTask(taskId)
+        if (!taskId.startsWith('temp_')) runSync(() => deleteTask(taskId))
     }
 
     const onUpdateTask = (sectionId: string, taskId: string, key: keyof Task, val: string) => {
@@ -133,7 +149,7 @@ export default function DashboardClient({ initialData }: { initialData: Section[
                 ...s,
                 tasks: s.tasks.map(t => t.id === taskId ? { ...t, [key]: trimmed } : t)
             } : s))
-            if (!taskId.startsWith('temp_')) updateTask(taskId, { [key]: trimmed })
+            if (!taskId.startsWith('temp_')) runSync(() => updateTask(taskId, { [key]: trimmed }))
         }
     }
 
@@ -165,7 +181,7 @@ export default function DashboardClient({ initialData }: { initialData: Section[
         setNewPlanDesc('')
 
         if (!activeTask.taskId.startsWith('temp_')) {
-            await addPlan(activeTask.taskId, trimmed)
+            runSync(() => addPlan(activeTask.taskId, trimmed))
             // the real ID is updated when user refreshes or we wait for polling.
         }
     }
@@ -186,7 +202,7 @@ export default function DashboardClient({ initialData }: { initialData: Section[
         } : s))
 
         if (!planId.startsWith('temp_')) {
-            await updatePlan(planId, { is_completed: newState })
+            runSync(() => updatePlan(planId, { is_completed: newState }))
         }
     }
 
@@ -202,7 +218,7 @@ export default function DashboardClient({ initialData }: { initialData: Section[
                 return t
             })
         } : s))
-        if (!planId.startsWith('temp_')) updatePlan(planId, { desc: trimmed })
+        if (!planId.startsWith('temp_')) runSync(() => updatePlan(planId, { desc: trimmed }))
     }
 
     const onDeletePlan = async (planId: string) => {
@@ -217,7 +233,7 @@ export default function DashboardClient({ initialData }: { initialData: Section[
                 return t
             })
         } : s))
-        if (!planId.startsWith('temp_')) await deletePlan(planId)
+        if (!planId.startsWith('temp_')) runSync(() => deletePlan(planId))
     }
 
     const computeProgress = (plans: Plan[]) => {
@@ -269,7 +285,26 @@ export default function DashboardClient({ initialData }: { initialData: Section[
             <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 mb-8 shadow-lg shadow-black/50">
                 <div className="flex justify-between items-center mb-2">
                     <h2 className="text-xl font-bold m-0 text-white">全局完成度</h2>
-                    <div className="text-sm px-2 py-1 bg-[#21262d] rounded text-[#8b949e]">云端实时同步已开启 🟢</div>
+                    <div className="flex items-center gap-2 text-sm px-2 py-1 bg-[#21262d] rounded text-[#8b949e] transition-colors duration-300">
+                        {syncStatus === 'saving' && (
+                            <span className="flex items-center gap-1.5 text-[#58a6ff] animate-pulse">
+                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                保存中...
+                            </span>
+                        )}
+                        {syncStatus === 'saved' && (
+                            <span className="flex items-center gap-1.5 text-[#3fb950]">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                已保存至云端
+                            </span>
+                        )}
+                        {syncStatus === 'idle' && (
+                            <span>云端实时同步开启 🟢</span>
+                        )}
+                    </div>
                 </div>
                 <div className="text-sm text-[#8b949e] mb-4">进度由各任务的“子计划”完成比例自动计算得出。</div>
                 <div className="w-full h-6 bg-[#21262d] rounded-full overflow-hidden relative">
