@@ -19,13 +19,20 @@ export async function getDashboardData() {
         plans:ai_plan_items(*)
       )
     `)
-        .order('sort_order', { ascending: true })
+        .order('sort_order', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true })
 
     // Sort nested arrays
     sections?.forEach((s: any) => {
-        s.tasks.sort((a: any, b: any) => a.sort_order - b.sort_order)
+        s.tasks.sort((a: any, b: any) => {
+            if (a.sort_order !== b.sort_order) return (a.sort_order || 0) - (b.sort_order || 0)
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        })
         s.tasks.forEach((t: any) => {
-            t.plans.sort((a: any, b: any) => a.sort_order - b.sort_order)
+            t.plans.sort((a: any, b: any) => {
+                if (a.sort_order !== b.sort_order) return (a.sort_order || 0) - (b.sort_order || 0)
+                return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            })
             // Calculate progress
             if (t.plans.length === 0) t.progress = 0
             else {

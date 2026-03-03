@@ -96,6 +96,13 @@ export default function DashboardClient({ initialData }: { initialData: Section[
         }
     }
 
+    const onManualSave = () => {
+        runSync(async () => {
+            // Fake network latency to reassure the user
+            await new Promise(res => setTimeout(res, 800))
+        })
+    }
+
     // ==== ACTIONS ====
 
     const onAddSection = async () => {
@@ -275,7 +282,11 @@ export default function DashboardClient({ initialData }: { initialData: Section[
     return (
         <>
             {/* Global Toolbar */}
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-end gap-3 mb-4">
+                <button onClick={onManualSave} className="bg-[#21262d] hover:bg-[#30363d] text-[#e6edf3] border border-[#30363d] font-bold py-2 px-4 rounded-md shadow-sm transition-all transform hover:-translate-y-0.5 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                    手动保存
+                </button>
                 <button onClick={onAddSection} className="bg-[#58a6ff] hover:bg-[#318bf8] text-[#000] font-bold py-2 px-4 rounded-md shadow-[0_0_15px_rgba(88,166,255,0.4)] transition-all transform hover:-translate-y-0.5">
                     + 添加新板块
                 </button>
